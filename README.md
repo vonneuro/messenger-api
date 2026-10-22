@@ -41,6 +41,16 @@ plt.xlabel("device voltage (V)"); plt.ylabel("current (µA)"); plt.show()
 
 That is one guarded measurement of one real memristor, a few seconds of bench time at 10 Hz.
 
+## Examples
+
+[examples/](examples/README.md) has 15 runnable studies, each with a short guide: memristor
+I–V loops, frequency and energy, a scan of all 16 memristors, RC time constants, VOLT programs on
+the devices, the p-bit sampler, saving results, and the same measurement over plain HTTP.
+
+```bash
+python examples/quickstart.py --user YOUR_NAME
+```
+
 ## Method reference
 
 All on `MessengerClient(url, credentials_file=None, timeout=30)`. Calls that fail raise

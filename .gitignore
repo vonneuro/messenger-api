@@ -6,3 +6,9 @@ build/
 .venv/
 venv/
 .env
+# example outputs
+*.png
+*.csv
+memristor_*.json
+results/
+sweep_C*/
