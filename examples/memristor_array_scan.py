@@ -1,7 +1,7 @@
 """Scan all 16 memristors of the MUX2 array at one amplitude (PROGRAMMING.md section 6).
 
-    python examples/memristor_array_scan.py --user francis
-    python examples/memristor_array_scan.py --user francis --amplitude 0.25 --channels 8 9 10 11
+    python examples/memristor_array_scan.py --user YOUR_NAME
+    python examples/memristor_array_scan.py --user YOUR_NAME --amplitude 0.25 --channels 8 9 10 11
 
 For each channel: peak currents, a small-signal resistance (straight line through the origin over
 the inner half of the swing), the rectification ratio |I+|/|I-| and the signed loop area (zero for

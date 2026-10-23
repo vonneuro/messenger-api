@@ -2,7 +2,7 @@
 record with the scope, charge an RC coprocessor, sweep a memristor, run VOLT programs and
 sample the p-bits. Every step is in PROGRAMMING.md.
 
-    python examples/bench_tour.py --url https://series-marina-gigantic.ngrok-free.dev --user francis
+    python examples/bench_tour.py --url https://series-marina-gigantic.ngrok-free.dev --user YOUR_NAME
 
 The password is asked for (or read from MESSENGER_PASSWORD). Steps that drive hardware
 use only the presets and limits the operator has enabled; switched-off devices are skipped.

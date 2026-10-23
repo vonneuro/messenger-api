@@ -1,7 +1,7 @@
 """I-V loops of one memristor on the MUX2 array, at increasing amplitudes (PROGRAMMING.md section 6).
 
-    python examples/memristor_iv.py --user francis --channel 3
-    python examples/memristor_iv.py --user francis --channel 9 --amplitudes 0.25 0.5 --frequency 5
+    python examples/memristor_iv.py --user YOUR_NAME --channel 3
+    python examples/memristor_iv.py --user YOUR_NAME --channel 9 --amplitudes 0.25 0.5 --frequency 5
 
 Stops raising the amplitude when the bench reports more than 40 uA. Writes
 memristor_C03.json (every run) and memristor_C03.png (the loops) in the current folder.

@@ -1,7 +1,7 @@
 """The memristor fingerprint: the pinched I-V loop narrows as the frequency rises.
 
-    python examples/memristor_frequency.py --user francis --channel 3
-    python examples/memristor_frequency.py --user francis --channel 12 --frequencies 1 3 10 30 100
+    python examples/memristor_frequency.py --user YOUR_NAME --channel 3
+    python examples/memristor_frequency.py --user YOUR_NAME --channel 12 --frequencies 1 3 10 30 100
 
 Measures one memristor of the MUX2 array at the same amplitude and several frequencies, and
 prints the signed loop area at each (PROGRAMMING.md section 6). A memristor's loop area shrinks

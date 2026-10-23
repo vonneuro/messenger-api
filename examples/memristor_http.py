@@ -4,7 +4,7 @@ Uses only the Python standard library, so it is also a template for other langua
 log in, submit a messenger_instrument job, poll it, download measurements.json
 (PROGRAMMING.md sections 8 and 13).
 
-    python examples/memristor_http.py --user francis --channel 3 --amplitude 0.25
+    python examples/memristor_http.py --user YOUR_NAME --channel 3 --amplitude 0.25
 """
 import argparse
 import getpass
