@@ -44,6 +44,7 @@ the queue (waiting is not counted).
 | `quickstart.py` | Log in, list what is switched on, sweep one memristor's I–V loop, plot it | ~5 s |
 | `bench_tour.py` | A tour of everything: hardware, the scope, an RC charge, a memristor sweep, VOLT on a memristor, p-bits | ~30 s |
 | `account.py` | Your bench time, what is switched on, and asking for more time (`--request-hours 3 --reason "..."`) | none |
+| `pulse.py` | A chosen voltage on one RC or memristor channel for a chosen time, or a sequence of pulses (`--pulses 0.1:20 0.3:50 0.1:20`); current and energy per pulse | ~3 s per pulse |
 
 ### Memristors
 
@@ -93,7 +94,8 @@ keeps its charge between visits, so each channel holds state.
 ## Changing them
 
 Each script's options are at the top of `main()` (`parser.add_argument(...)`), and each bench call
-is a single line: `client.memristor_array(...)`, `client.volt_run(...)`, `client.nano(...)`. The
+is a single line: `client.memristor_array(...)`, `client.pulse("rc:2", 1.0, 200)`, `client.volt_run(...)`,
+`client.nano(...)`. The
 repository README lists every method, what it returns and the errors.
 
 | If you see | It means |

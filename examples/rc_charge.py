@@ -7,6 +7,9 @@ The password is asked for, or read from MESSENGER_PASSWORD. A VOLT 0.1 `system` 
 RC coprocessor N (0-15) for an interval and observes its terminal current as 24 window means; the
 reply also carries the energy delivered and which contract clauses the bench checked.
 Slow channels (3, 9, 10, 12, 13: time constants around 1-3 s) need a longer --ms, up to 2000.
+
+--drive is a fraction of the channel's drive voltage. To give the voltage itself, use a pulse
+(examples/pulse.py): client.pulse_rc(channel, volts, ms), with volts in 0..4 (2.24 on channel 4).
 """
 import argparse
 import getpass

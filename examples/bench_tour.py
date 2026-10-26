@@ -64,6 +64,13 @@ system rc_charge(u: real) {
         print(f"RC 2 charged at {reply['provenance']['drive_v']:.2f} V: {current[0]*1e3:.2f} mA falling to "
               f"{current[-1]*1e3:.2f} mA over 200 ms ({reply['measured_energy_j']*1e6:.0f} µJ delivered)")
 
+        # 4b. The same kind of drive, stated in volts and milliseconds: a pulse. client.pulse(target,
+        #     volts, ms) writes the VOLT program for you; RC channels take 0..4 V (2.24 V on channel 4)
+        #     for 5..2000 ms. client.pulse_rc(2, 1.0, 100) is the same call.
+        reply = client.pulse("rc:2", 1.0, 100)
+        print(f"Pulse: rc:2 at {reply['pulse']['applied_v']:.2f} V for 100 ms -> "
+              f"{reply['result']['value'][0]*1e3:.2f} mA at the start")
+
     if hardware.get("memristor-array", {}).get("enabled") or me.is_admin:
         # 5. One memristor's I-V loop. W2 swings around the 2.47 V bias of the array, so the device
         #    sees +-0.25 V while W2 itself stays positive.
@@ -88,6 +95,12 @@ system memristor_evolve(u: real) {
         reply = client.volt_run(program, {"u": 0.5}, "memristor:15")
         print(f"VOLT on memristor:15 -> {reply['result']['value']*1e9:+.1f} nA mean, "
               f"{reply['measured_energy_j']*1e9:.3f} nJ at the terminals")
+
+        # 6b. A memristor pulse in volts: the device itself held at +0.1 V for 20 ms (memristors take
+        #     -0.3..+0.3 V for 5..500 ms). Small and short: a strong pulse can switch a device.
+        reply = client.pulse_memristor(15, 0.1, 20)
+        mean = sum(reply["result"]["value"]) / len(reply["result"]["value"])
+        print(f"Pulse: memristor:15 at {reply['pulse']['applied_v']:+.2f} V for 20 ms -> {mean*1e9:+.1f} nA mean")
     else:
         print("The memristor array is switched off; skipping the memristor examples.")
 

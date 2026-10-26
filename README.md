@@ -43,7 +43,7 @@ That is one guarded measurement of one real memristor, a few seconds of bench ti
 
 ## Examples
 
-[examples/](examples/README.md) has 15 runnable studies, each with a short guide: memristor
+[examples/](examples/README.md) has 16 runnable studies, each with a short guide: memristor
 I–V loops, frequency and energy, a scan of all 16 memristors, RC time constants, VOLT programs on
 the devices, the p-bit sampler, saving results, and the same measurement over plain HTTP.
 
@@ -71,6 +71,7 @@ All on `MessengerClient(url, credentials_file=None, timeout=30)`. Calls that fai
 | `instrument_status()` | dict | Instrument serial and output limits |
 | `memristor_array(channel, amplitude=0.25, frequency=10.0, wait_timeout=None)` | dict | One guarded I–V sweep |
 | `volt_run(source, inputs, target, wait_timeout=180)` | dict | A VOLT 0.1 program on `"memristor:N"` or `"rc:N"` |
+| `pulse(target, volts, ms, observe="vector")` · `pulse_rc(channel, volts, ms)` · `pulse_memristor(channel, volts, ms)` | dict | A voltage on one channel for a set time, with its current (section 7, Pulses) |
 | `measure(channel=None, waveform="sine", amplitude=0.1, offset=0.0, frequency=1000, duration=0.004, samples=1024, sample_rate=100000, range_v=None, fixture=None)` | dict | One scope/generator job |
 | `nano(action, **data)` · `nano_sample(burn_in=0, thin=10)` · `nano_status()` | dict | p-bit sampler |
 | **Devices** | | |
@@ -148,6 +149,7 @@ data = requests.get(f"{base}/api/jobs/{job['id']}/outputs/measurements.json", he
 | `GET /api/jobs/instrument-status` | | Instrument serial and output limits |
 | `POST /api/jobs` | `{"name", "job_type", "payload": {"args": [...]}}` | Submit a job |
 | `POST /api/jobs` (VOLT) | `{"name", "job_type": "volt_run", "payload": {"source", "inputs", "target"}}` | VOLT 0.1 on the bench; the result is the job's `result.json` |
+| `POST /api/jobs` (pulse) | the same `volt_run` job: a one-`evolve` program for `ms`, with `inputs` `{"u": volts / 0.3}` (memristor) or `{"u": volts / drive_v}` (RC, 4 V; 2.24 V on channel 4) | A voltage on one channel for a set time (section 7, Pulses) |
 | `GET /api/jobs/{id}` · `GET /api/jobs/{id}/wait?timeout=25` · `DELETE /api/jobs/{id}` | | Job state · state when it ends (or after the timeout) · cancel |
 | `GET /api/jobs/{id}/outputs` · `GET /api/jobs/{id}/outputs/{file}` | | List · download result files |
 | `GET /api/jobs/volt-programs` | | VOLT processing programs |

@@ -7,6 +7,9 @@ The password is asked for, or read from MESSENGER_PASSWORD. A VOLT 0.1 `system` 
 memristor N (0-15) at u x 0.3 V for 10 ms and observes the mean current; repeated for each u in
 --steps (-1..1). A rectifying device answers more strongly in one direction. The bench checks the
 device is at 0 V before each step, and every reply says which contract clauses it checked.
+
+To give the step in volts and choose its length, use a pulse instead (examples/pulse.py):
+client.pulse_memristor(channel, volts, ms) holds the device at volts (-0.3..0.3) for ms (5..500).
 """
 import argparse
 import getpass
