@@ -166,6 +166,24 @@ Arguments for `messenger_instrument` jobs, written in full:
 - presets: `--fixture generic|rc_led|memristor_array`, with `--array-channel 0..15` for the
   memristor array.
 
+## Connect your own hardware
+
+The same install gives you `vonneuro-node`, the agent that puts **your** hardware on the vonNeuro
+network. It ships a driver kit: `vonneuro_node/drivers/simulated.py`, a simulated RC circuit that
+runs anywhere, and `vonneuro_node/drivers/template.py`, a skeleton for a real instrument. A driver
+is a short Python class that declares your devices and their operations, refuses what is unsafe,
+and drives the hardware. It can also declare settings your node's admins change from the website,
+a page for your users, and VOLT support through one drive function.
+
+```bash
+vonneuro-node pair --hub https://series-marina-gigantic.ngrok-free.dev --code ABCD-EFGH   # the code: My hardware -> Register a node
+vonneuro-node check                                  # validate your driver, offline
+vonneuro-node run                                    # your devices go online
+```
+
+The guide is [docs/DRIVERS.md](docs/DRIVERS.md): installing, writing a driver, settings, device
+pages, VOLT on your device, testing and safety.
+
 ## Fair use
 
 The hardware is real and shared. Large drives can change a memristor's state for the next user,

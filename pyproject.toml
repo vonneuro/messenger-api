@@ -17,5 +17,8 @@ Homepage = "https://www.vonneuro.com"
 Server = "https://series-marina-gigantic.ngrok-free.dev"
 Repository = "https://github.com/vonneuro/messenger-api"
 
+[project.scripts]
+vonneuro-node = "vonneuro_node.__main__:main"
+
 [tool.hatch.build.targets.wheel]
-packages = ["vonneuro_messenger"]
+packages = ["vonneuro_messenger", "vonneuro_node"]

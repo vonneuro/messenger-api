@@ -98,6 +98,18 @@ class Device:
         self._load(self._client._request("PATCH", f"/api/devices/{self.ref}", json=changes).json())
         return self
 
+    @property
+    def settings(self) -> dict:
+        """For the node's admins: the settings its driver declares, each with its range, unit,
+        default and the "value" in force (e.g. the bench's pulse limits)."""
+        return self.data.get("settings") or {}
+
+    def change_settings(self, **values: Any) -> "Device":
+        """Node admins: change settings (None resets one), e.g. ``change_settings(pulse_max_v=1.0)``.
+        The node applies them between jobs; ``refresh()`` shows the values once applied."""
+        self._load(self._client._request("PUT", f"/api/devices/{self.ref}/settings", json=values).json())
+        return self
+
 
 class DevicesMixin:
     def devices(self) -> list[Device]:
