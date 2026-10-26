@@ -17,13 +17,19 @@ from ._models import JobStatus
 
 _request_ids = itertools.count(int(time.time() * 1000) * 1000)  # unique, increasing, < 2**53
 
-# Pulses (MessengerClient.pulse): one VOLT drive.interval(u) per pulse, with u = volts / full scale.
-# Memristors: the device itself is held at u * 0.3 V (W2 around the 2.47 V bias), so -0.3..+0.3 V.
+# Pulses (MessengerClient.pulse): one VOLT drive.interval(u) per pulse, with u = volts / scale.
+# Memristors: the device itself is held at u * 0.3 V (W2 around the 2.47 V bias).
 # RC coprocessors: W1 drives u * the channel's drive voltage (u >= 0: polarised capacitors); the
 # drive per channel is the bench's MUX-RC plan, 4 V except channel 4 (2.24 V, its collector swing).
+# The allowed volts and ms are the bench operator's pulse limits, read from the server
+# (client.pulse_limits()); these are the defaults, used with servers that do not report them.
 MEMRISTOR_PULSE_V = 0.3
 RC_DRIVE_V = (4.0, 4.0, 4.0, 4.0, 2.24, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0)
 PULSE_MS = {"rc": (5.0, 2000.0), "memristor": (5.0, 500.0)}
+DEFAULT_PULSE_TABLE = {
+    "memristor": {"u_scale_v": MEMRISTOR_PULSE_V, "max_v": MEMRISTOR_PULSE_V, "ms": list(PULSE_MS["memristor"])},
+    "rc": {"u_scale_v": list(RC_DRIVE_V), "max_v": list(RC_DRIVE_V), "ms": list(PULSE_MS["rc"])},
+}
 
 
 def pulse_program(kind: str, ms: float, observe: str = "vector") -> str:
@@ -223,19 +229,31 @@ class BenchMixin:
 
     # ── Pulses: a voltage on one channel for a set time ─────────────────────
 
+    def pulse_limits(self) -> dict:
+        """What a pulse may be right now, as the bench operator set it: for "memristor" and "rc", the
+        u scale, the highest volts (per channel for rc) and the [shortest, longest] ms."""
+        from ._client import MessengerError
+        try:
+            return self._request("GET", "/api/hardware/pulse-limits").json()
+        except MessengerError as error:
+            if error.status_code != 404:
+                raise
+            return DEFAULT_PULSE_TABLE          # a server from before adjustable limits
+
     def pulse(self, target: str, volts: float, ms: float, *, observe: str = "vector",
               wait_timeout: float = 180.0) -> dict:
         """Apply ``volts`` to one channel for ``ms`` milliseconds and measure its current.
 
         ``target`` is ``"rc:N"`` or ``"memristor:N"`` (N in 0-15).
 
-        * ``"memristor:N"``: the memristor itself is held at ``volts`` (-0.3 to +0.3 V) for 5-500 ms,
-          after a rest check at 0 V; current through its 10 kOhm sense resistor.
-        * ``"rc:N"``: W1 drives the RC branch at ``volts`` (0 V up to the channel's drive voltage,
-          ``RC_DRIVE_V[N]``: 4 V, 2.24 V on channel 4) for 5-2000 ms; current through the 100 Ohm sense.
+        * ``"memristor:N"``: the memristor itself is held at ``volts`` after a rest check at 0 V;
+          current through its 10 kOhm sense resistor. Default limits: -0.3 to +0.3 V, 5-500 ms.
+        * ``"rc:N"``: W1 drives the RC branch at ``volts``; current through the 100 Ohm sense.
+          Default limits: 0 V up to 4 V (2.24 V on channel 4), 5-2000 ms.
 
-        Returns the ``volt_run`` record: ``record["result"]["value"]`` is the current in A, as 24
-        window means across the pulse (``observe="vector"``) or one mean (``observe="real"``);
+        The bench operator can change the limits (:meth:`pulse_limits` shows them now). Returns the
+        ``volt_run`` record: ``record["result"]["value"]`` is the current in A, as 24 window means
+        across the pulse (``observe="vector"``) or one mean (``observe="real"``);
         ``record["measured_energy_j"]`` is the work done at the device, and ``record["pulse"]``
         repeats what was asked and what the bench applied. Out-of-range requests raise
         ``MessengerError`` before anything is queued."""
@@ -244,17 +262,20 @@ class BenchMixin:
         if kind not in PULSE_MS or not number.isdigit() or not 0 <= int(number) <= 15:
             raise MessengerError(422, "target must be 'rc:N' or 'memristor:N' with N in 0..15")
         channel = int(number)
-        full = RC_DRIVE_V[channel] if kind == "rc" else MEMRISTOR_PULSE_V
-        low = 0.0 if kind == "rc" else -full
-        if not low <= volts <= full:
-            raise MessengerError(422, f"{target}: volts must be in {low:g}..{full:g} V"
-                                      + (" (polarised capacitors: nonnegative)" if kind == "rc" else " across the memristor"))
-        shortest, longest = PULSE_MS[kind]
+        table = self.pulse_limits()[kind]
+        scale = table["u_scale_v"][channel] if kind == "rc" else table["u_scale_v"]
+        high = table["max_v"][channel] if kind == "rc" else table["max_v"]
+        low = 0.0 if kind == "rc" else -high
+        if not low <= volts <= high:
+            raise MessengerError(422, f"{target}: volts must be in {low:g}..{high:g} V"
+                                      + (" (polarised capacitors: nonnegative)" if kind == "rc" else " across the memristor")
+                                      + "; the bench operator sets these limits")
+        shortest, longest = table["ms"]
         if not shortest <= ms <= longest:
             raise MessengerError(422, f"{target}: ms must be in {shortest:g}..{longest:g}")
         if observe not in ("vector", "real"):
             raise MessengerError(422, "observe must be 'vector' (24 window means) or 'real' (the mean)")
-        u = round(volts / full, 9)
+        u = round(volts / scale, 9)
         reply = self.volt_run(pulse_program(kind, ms, observe), {"u": u}, target, wait_timeout=wait_timeout)
         if not reply.get("ok", True):
             raise MessengerError(409, f"{target}: {reply.get('error')}")
@@ -264,11 +285,11 @@ class BenchMixin:
         return reply
 
     def pulse_rc(self, channel: int, volts: float, ms: float, **options) -> dict:
-        """RC coprocessor ``channel`` at ``volts`` (0 up to ``RC_DRIVE_V[channel]``) for ``ms`` (5-2000 ms)."""
+        """RC coprocessor ``channel`` at ``volts`` for ``ms`` (within :meth:`pulse_limits`)."""
         return self.pulse(f"rc:{channel}", volts, ms, **options)
 
     def pulse_memristor(self, channel: int, volts: float, ms: float, **options) -> dict:
-        """Memristor ``channel`` held at ``volts`` (-0.3 to +0.3 V) for ``ms`` (5-500 ms)."""
+        """Memristor ``channel`` held at ``volts`` for ``ms`` (within :meth:`pulse_limits`)."""
         return self.pulse(f"memristor:{channel}", volts, ms, **options)
 
     # ── Live fixtures ───────────────────────────────────────────────────────
