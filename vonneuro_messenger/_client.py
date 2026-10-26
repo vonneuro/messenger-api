@@ -11,6 +11,7 @@ import httpx
 
 from ._auth import TUNNEL_HEADERS, TokenStore
 from ._bench import BenchMixin
+from ._devices import DevicesMixin
 from ._models import Job, User, Node, DashboardStats, JobStatus
 
 
@@ -33,7 +34,7 @@ def _error_detail(resp: httpx.Response):
     return body.get("detail", body) if isinstance(body, dict) else body
 
 
-class MessengerClient(BenchMixin):
+class MessengerClient(BenchMixin, DevicesMixin):
     """
     Synchronous client for the vonNeuro Messenger job dispatch server.
 

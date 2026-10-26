@@ -30,6 +30,7 @@ Async usage::
 from ._client import MessengerClient, MessengerError
 from ._async_client import AsyncMessengerClient
 from ._bench import LiveSession
+from ._devices import Device
 from ._models import Job, User, Node, DashboardStats, JobStatus, JobType
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "MessengerClient",
     "AsyncMessengerClient",
     "LiveSession",
+    "Device",
     # Models
     "Job",
     "User",

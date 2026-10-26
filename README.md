@@ -73,6 +73,9 @@ All on `MessengerClient(url, credentials_file=None, timeout=30)`. Calls that fai
 | `volt_run(source, inputs, target, wait_timeout=180)` | dict | A VOLT 0.1 program on `"memristor:N"` or `"rc:N"` |
 | `measure(channel=None, waveform="sine", amplitude=0.1, offset=0.0, frequency=1000, duration=0.004, samples=1024, sample_rate=100000, range_v=None, fixture=None)` | dict | One scope/generator job |
 | `nano(action, **data)` · `nano_sample(burn_in=0, thin=10)` · `nano_status()` | dict | p-bit sampler |
+| **Devices** | | |
+| `devices()` · `device("owner/slug")` | list of `Device` · `Device` | Every device you can use · one device (`.operations`, `.specs`, `.status`) |
+| `Device.run(operation, **params)` · `Device.submit(...)` · `Device.result(job)` | dict · `Job` · dict | Run and return the main result · queue only · wait for a queued job |
 | **VOLT processing** | | |
 | `volt_programs()` | list of dicts | Installed programs and their signatures |
 | `run_volt(program, inputs)` · `submit_volt(program, inputs)` | dict · `Job` | Run and wait · submit only |
@@ -149,6 +152,9 @@ data = requests.get(f"{base}/api/jobs/{job['id']}/outputs/measurements.json", he
 | `GET /api/jobs/{id}/outputs` · `GET /api/jobs/{id}/outputs/{file}` | | List · download result files |
 | `GET /api/jobs/volt-programs` | | VOLT processing programs |
 | `POST /api/nano/command` · `POST /api/nano/sample` · `GET /api/nano/status` | `{"action", "data"}` · `{"burn_in", "thin"}` | p-bit sampler |
+| `GET /api/devices` · `GET /api/devices/{owner}/{slug}` | | Devices on the network, with their operations and parameters |
+| `POST /api/devices/{owner}/{slug}/run` | `{"operation", "params": {...}}` | Queue an operation; returns the job |
+| `GET /api/public/devices` | | No sign-in: the public directory, with each device's status and 30-day usage |
 
 Arguments for `messenger_instrument` jobs, written in full:
 
