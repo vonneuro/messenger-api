@@ -3,6 +3,8 @@ Synchronous vonNeuro Messenger client.
 """
 from __future__ import annotations
 
+import json
+import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
@@ -21,6 +23,17 @@ class MessengerError(Exception):
         self.status_code = status_code
         self.detail = detail
         super().__init__(f"HTTP {status_code}: {detail}")
+
+
+def _progress(event: dict) -> None:
+    """One line per job event in $MESSENGER_PROGRESS_FILE: the VS Code extension shows the run's progress."""
+    path = os.environ.get("MESSENGER_PROGRESS_FILE")
+    if path:
+        try:
+            with open(path, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(event) + "\n")
+        except OSError:
+            pass
 
 
 def _error_detail(resp: httpx.Response):
@@ -53,15 +66,25 @@ class MessengerClient(BenchMixin, DevicesMixin):
 
     def __init__(
         self,
-        base_url: str,
+        base_url: Optional[str] = None,
         license_key: Optional[str] = None,
         credentials_file: Optional[Path] = None,
         timeout: float = 30.0,
     ):
-        self.base_url    = base_url.rstrip("/")
+        self.base_url    = (base_url or os.environ.get("MESSENGER_URL") or "").rstrip("/")
+        if not self.base_url:
+            raise ValueError("MessengerClient needs the server's URL (or MESSENGER_URL)")
         self.license_key = license_key
         self._store      = TokenStore(credentials_file)
         self._timeout    = timeout
+        self._requests   = 0
+        # Signed in by the vonNeuro VS Code extension (or anything else that sets these): login() is not needed.
+        self._signed_in_by_env = bool(os.environ.get("MESSENGER_TOKEN")) and (
+            not os.environ.get("MESSENGER_URL") or os.environ["MESSENGER_URL"].rstrip("/") == self.base_url)
+        if self._signed_in_by_env:
+            self._store.set(os.environ["MESSENGER_TOKEN"], os.environ.get("MESSENGER_REFRESH_TOKEN", ""))
+        limit = os.environ.get("MESSENGER_MAX_REQUESTS", "")
+        self._max_requests = int(limit) if limit.isdigit() and int(limit) > 0 else None
 
     # ── Internal HTTP ─────────────────────────────────────────────────────────
 
@@ -74,6 +97,10 @@ class MessengerClient(BenchMixin, DevicesMixin):
         return h
 
     def _request(self, method: str, path: str, *, retry: bool = True, **kwargs) -> httpx.Response:
+        self._requests += 1
+        if self._max_requests is not None and self._requests > self._max_requests:
+            raise MessengerError(429, f"This run reached its limit of {self._max_requests} requests "
+                                      "(MESSENGER_MAX_REQUESTS). Split the experiment into smaller runs.")
         with httpx.Client(base_url=self.base_url, timeout=self._timeout, headers=TUNNEL_HEADERS) as client:
             kwargs.setdefault("headers", {}).update(self._headers())
             resp = client.request(method, path, **kwargs)
@@ -101,8 +128,11 @@ class MessengerClient(BenchMixin, DevicesMixin):
             raise MessengerError(resp.status_code, detail)
         return self.login(username, password)
 
-    def login(self, username: str, password: str) -> User:
-        """Log in and return the current user.  Stores tokens automatically."""
+    def login(self, username: str = "", password: str = "") -> User:
+        """Log in and return the current user.  Stores tokens automatically.
+        Already signed in through MESSENGER_TOKEN (the VS Code extension): returns the user."""
+        if self._signed_in_by_env:
+            return self.me()
         resp = httpx.post(
             f"{self.base_url}/api/auth/login",
             data={"username": username, "password": password},
@@ -260,6 +290,7 @@ class MessengerClient(BenchMixin, DevicesMixin):
         deadline    = time.monotonic() + timeout
         last_status = None
         long_poll   = True   # the server answers when the job changes (at most 25 s per request)
+        _progress({"id": job_id, "phase": "waiting"})
 
         while time.monotonic() < deadline:
             if long_poll:
@@ -279,6 +310,11 @@ class MessengerClient(BenchMixin, DevicesMixin):
                 if on_update:
                     on_update(job)
             if job.is_terminal:
+                _progress({"id": job_id, "phase": "finished", "status": str(getattr(job.status, "value", job.status)),
+                           "name": job.name,
+                           **{k: v.isoformat() if v else None for k, v in
+                              (("created_at", job.created_at), ("started_at", job.started_at),
+                               ("completed_at", job.completed_at))}})
                 return job
             if not long_poll:
                 time.sleep(poll_interval)
