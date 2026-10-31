@@ -111,6 +111,7 @@ def main(argv=None) -> int:
     try:
         runpy.run_path(str(script), init_globals=lab_globals(client), run_name="__main__")
     finally:
+        client._release_quietly()      # a bench hold the script took ends with the script, even on an error
         if "matplotlib.pyplot" in sys.modules and os.environ.get("MESSENGER_FIGURES") == "vscode":
             sys.modules["matplotlib.pyplot"].show()   # figures the script made but never showed
     return 0

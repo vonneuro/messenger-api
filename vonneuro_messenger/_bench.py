@@ -112,7 +112,87 @@ class LiveSession:
         self.release()
 
 
+class BenchHold:
+    """The bench held for this account; from :meth:`BenchMixin.hold_bench`. Use as a context manager::
+
+        with client.hold_bench(idle_s=60):
+            for v in levels:
+                client.pulse_rc(3, v, 1000)      # nobody else's job runs in between
+
+    It is released when the ``with`` block ends, by :meth:`release`, when the script exits, and by the
+    server after ``idle_s`` seconds with none of your jobs queued or running, at its maximum length,
+    or when your bench time runs out."""
+
+    def __init__(self, client, info: dict):
+        self.client, self.info = client, info
+
+    def renew(self) -> dict:
+        """Count as activity now (e.g. before a long computation between jobs)."""
+        self.info = self.client._request("POST", "/api/bench/hold/renew").json()
+        return self.info
+
+    def release(self) -> dict:
+        """Release the bench; returns what the hold billed (``wall_seconds``, ``charged_seconds``, ...)."""
+        return self.client.release_bench()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
+
+
 class BenchMixin:
+    # ── Holding the bench (optional) ────────────────────────────────────────
+
+    def hold_bench(self, idle_s: float = 60, max_s: Optional[float] = None, wait_s: float = 0) -> BenchHold:
+        """Keep the bench to yourself between your jobs: other accounts' bench jobs wait until you release it.
+
+        Optional: without a hold every job queues first come, first served, and someone else's job can run
+        between two of yours (it can, e.g., discharge a capacitor or move a memristor you are measuring).
+        A hold is billed by wall-clock time from start to release, idle time included, so it costs more
+        than the same jobs alone. It ends at the first of: :meth:`release_bench` (or the end of a ``with``
+        block, or of the script), ``idle_s`` seconds (5-300) with no job of yours queued or running,
+        ``max_s`` (at most 30 min), or your bench time running out. Calling it again renews your hold.
+        If another account holds the bench this waits up to ``wait_s`` seconds, then raises MessengerError 409."""
+        from ._client import MessengerError
+        deadline = time.monotonic() + max(0.0, wait_s)
+        body = {"idle_seconds": idle_s} if max_s is None else {"idle_seconds": idle_s, "max_seconds": max_s}
+        while True:
+            try:
+                info = self._request("POST", "/api/bench/hold", json=body).json()
+                break
+            except MessengerError as error:
+                if error.status_code != 409 or time.monotonic() >= deadline:
+                    raise
+                time.sleep(2.0)
+        if not getattr(self, "_bench_hold_atexit", False):
+            import atexit
+            import weakref
+            ref = weakref.ref(self)
+            atexit.register(lambda: ref() is not None and ref()._release_quietly())
+            self._bench_hold_atexit = True
+        self._holding_bench = True
+        return BenchHold(self, info)
+
+    def release_bench(self) -> dict:
+        """Release your hold on the bench, if any. Returns ``released`` and, when it was, the hold's
+        ``wall_seconds``, the seconds your jobs in it billed (``jobs_seconds``) and ``charged_seconds``
+        (the rest, billed now)."""
+        self._holding_bench = False
+        return self._request("POST", "/api/bench/release").json()
+
+    def bench_hold_status(self) -> dict:
+        """Whether the bench is held now (``held``), whether by you (``mine``), and until when at the latest."""
+        return self._request("GET", "/api/bench/hold").json()
+
+    def _release_quietly(self) -> None:
+        if getattr(self, "_holding_bench", False):
+            try:
+                self.release_bench()
+            except Exception:
+                pass                    # the server releases it after idle_s anyway
+
     # ── Account and hardware ────────────────────────────────────────────────
 
     def usage(self) -> dict:

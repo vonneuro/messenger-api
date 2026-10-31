@@ -72,6 +72,7 @@ All on `MessengerClient(url, credentials_file=None, timeout=30)`. Calls that fai
 | `memristor_array(channel, amplitude=0.25, frequency=10.0, wait_timeout=None)` | dict | One guarded I–V sweep |
 | `volt_run(source, inputs, target, wait_timeout=180)` | dict | A VOLT 0.1 program on `"memristor:N"` or `"rc:N"` |
 | `pulse(target, volts, ms, observe="vector")` · `pulse_rc(channel, volts, ms)` · `pulse_memristor(channel, volts, ms)` | dict | A voltage on one channel for a set time, with its current (section 7, Pulses) |
+| `hold_bench(idle_s=60, max_s=None, wait_s=0)` · `release_bench()` · `bench_hold_status()` | `BenchHold` (`.renew()`, `.release()`, context manager) · dict · dict | Optional: keep the bench to yourself between your jobs, billed by wall-clock time (section 7, Holding the bench) |
 | `measure(channel=None, waveform="sine", amplitude=0.1, offset=0.0, frequency=1000, duration=0.004, samples=1024, sample_rate=100000, range_v=None, fixture=None)` | dict | One scope/generator job |
 | `nano(action, **data)` · `nano_sample(burn_in=0, thin=10)` · `nano_status()` | dict | p-bit sampler |
 | **Devices** | | |
@@ -106,7 +107,7 @@ energy measured so far in the run. `plt.show()` puts a figure on the page.
 | 401 | Not logged in, or the session could not be renewed | `client.login(...)` again |
 | 402 | Out of bench time, or a sweep longer than your time left | `client.usage()`; `client.request_time(...)` |
 | 403 | Job type not open to your account | Use one of the job types open to every account |
-| 409 | Hardware switched off, a voltage rule broken, fixture busy, or a job already running | Read `error.detail`; for busy hardware, retry later |
+| 409 | Hardware switched off, a voltage rule broken, fixture busy, a job already running, or the bench held by another account | Read `error.detail`; for busy hardware, retry later (`hold_bench(wait_s=...)` retries for you) |
 | 422 | Invalid arguments | Read `error.detail` |
 
 ```python
@@ -116,10 +117,11 @@ except MessengerError as error:
     print(error.status_code, error.detail)   # 409 W2 feeds the MUX2 memristor array and must stay within 0..5 V …
 ```
 
-- **Metering:** bench time is metered per job, rounded up, and queue time does not count.
+- **Metering:** bench time is metered per job, rounded up, and queue time does not count. A bench
+  hold is the exception: it is billed by wall-clock time (section 7, Holding the bench).
 - **One active job per account.** Wait for it, or cancel it.
 - **A shared instrument.** Everyone's jobs take turns in arrival order, so a job may wait a few
-  seconds before it runs.
+  seconds before it runs, or until the end of another account's bench hold.
 - **Only finite outputs.** Every output stops by itself; nothing is left driving after a job.
 
 ## Without the Python client
